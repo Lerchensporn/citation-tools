@@ -1,0 +1,69 @@
+Literature management
+=====================
+
+Programs:
+crossref (bib|query) <>
+crossref register
+	E-Mail:
+	Password:
+
+metafromfile <file>::
+	Retrieve all reference metadata from the file:
+	1) DOI 2) ISBN 3) guess title and author
+	smart output?
+
+bibfrommeta <meta>::
+	Retrieve BibTeX from metadata input.
+	Be smart enough to parse different inputs:
+	DOI, ISBN, sort of bibtex, formatted citation
+
+docfrommeta <meta>::
+	Download document from metadata.
+
+bibfromfile <file>::
+	Retrieve the BibTeX of a document from the Internet and output it. Add the field
+	file={<file>}.  Configure the fields that are included.
+	Replace by bibfrommeta `metafromfile <file>`?
+
+refconv::
+	Convert between database formats (BibTeX, EndNote, Groff etc.)
+
+citations <file>::
+	Retrieve a list of citations. Methods: 1) follow DOI and download citations from
+	the publisher web site. 2) 
+
+Plan
+----
+Develop a crossref api query in commandline.
+Look for shibboleth browser addon. Does a single shibboleth login apply to different
+	journal sites?
+Look for converters.
+Look for BibTeX alternatives.
+Check for PDF tag and metadata support.
+Check if sci-hub is good enough as an API (no script for each journal needed).
+
+Use cases
+---------
+Select text in a PDF file, press some key. Then:
+* a browser opens the publisher page, or
+* retrieve doi and copy it to the clipboard. Use dunst for notification.
+Use the same method to complete BibTeX entries.
+
+Retrieve BibTeX for some document.
+
+Auto rename files.
+
+Show metadata in ranger file preview. How? Look for bibtex files in the document's
+directory and the parent directories?
+
+Implementation
+--------------
+For each journal, a script is needed that talks with the web page.
+Because of extensive text parsing and dynamics, Python would be a good choice.
+Maybe write a Python module.
+
+For each site:
+	Retrieve document (shibboleth and athens support).
+	Retrieve citations.
+	Retrieve metadata.
+

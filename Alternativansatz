@@ -1,0 +1,49 @@
+Am Rechner ist das Wichtige die Kompatibilität und Einfachheit. Die wichtigsten
+Aufgaben für die Arbeit sind: E-Mail, Bürosoftware, PDF.
+Für Forscher außerdem Literaturverwaltung, TeX.
+
+Praktisch wäre die Synchronisation von Lesezeichen sowie ihre Einbindung mit BibTeX
+sowie die Nutzung in Textdateien und lowriter.
+
+Uri-Dateien (Endung .uri) im ini-Format mit Dateiöffner. Man braucht ein Plugin zum
+Importieren und Exportieren. Oder gleich im BibTex-Format. Für PDF-Dateien nicht nur
+den Namen angeben, sondern lieber den Hashwert. Beim Öffnen werden dann alle
+Unterverzeichnisse durchsucht. Oder auch Fuzzy-Match anhand der Metadaten.
+Zum Browsen und transportieren wäre es gut, nur eine Metadaten-Datei pro Quelle zu
+haben. Man bräuchte dann noch ein Skript, das diese Dateien zu einer BibTex
+zusammenführt.
+
+
+- general approach: Document metadata tools
+- file format: Bibtex, ini, ris
+- metadata from original file
+- metadata file and original file shall be treat equally. multiple entries in
+  metadata file shall be supported
+
+Modules
+-------
+- Metadata file reader
+- query prog
+- formatter, converter, splitter
+- file formats: RIS, BibTeX
+
+Function:
+--------
+- Generate BibTeX from PDF
+- open file from bibtex
+- search web databases
+- format bibtex to terminal
+
+- shibboleth login?
+
+Plan
+----
+- file reader, formatter and opener
+- firefox plugin (bookmarks from places.sqlite to files)
+
+Libraries
+---------
+- citeproc-py
+- pybtex
+- bibutils
+- bibliograph.parsing
