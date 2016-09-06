@@ -1,0 +1,41 @@
+Bibliography tools
+==================
+
+- All references are stored as PDF files.
+- The bibliography data are stored in individual files, one file per entry.
+	This makes it easy to automatically retrieve and manipulate bibliography
+	information with scripts, as well as copy parts of the bibliography.
+
+	The bib file name should be the corresponding reference keyword.
+
+	An alternative would be one large bibtex file that is managed with a GUI program.
+	However, it would be difficult to copy selected parts of the bibliography. The
+	biggest problem is that it would not be possible to rename or move references without
+	breaking the link to the bibliography data.
+
+bib-fetch <file.pdf>
+	Print bibliography.
+bib-fetch --save <file.pdf>
+	Store bibliography.
+bib-cite ...
+	Look in all subdirectories for bibliography matching the keyword.
+bib-cite <keywords> [--style <style>]
+	[--order keyword|author|date] [--format plain|html|context|latex]
+	Print the CSL-formatted bibliography list of the references specified by the
+	keywords.
+bib-cite --endnote <keyword> [--style <style>] [--format plain|html|context|latex]
+	Print the endnote.
+bib-process <filename> [--style <style>] [--format plain|html|context|latex|odf]
+	Replace the placeholders "@<key>" and "@bibliography" in the file by the output
+	of bib-cite. This is what pandoc already does, but there it is quite broken and
+	does not work with context. If not specified, guess the format using a mimetype
+	detector. Optionally read the file content from clipboard?
+
+Consider the environment variable BIBSTYLE.
+
+Useful Libraries
+----------------
+- citeproc-py
+- pybtex
+- bibutils
+- bibliograph.parsing

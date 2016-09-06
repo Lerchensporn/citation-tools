@@ -1,0 +1,9 @@
+TODO
+====
+
+- use argparse in bib-fetch
+- bib-cite: option to merge all references to a single database (format|style=bibtex)
+- clone citeproc-py
+	- fix pages error
+	- remove ascii restriction in BibTeX
+	- add context and latex formatters

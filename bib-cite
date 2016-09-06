@@ -1,0 +1,99 @@
+#!/usr/bin/env python
+
+import os
+import re
+import warnings
+import mimetypes
+from citeproc.source.bibtex import BibTeX
+from citeproc.source.json import CiteProcJSON
+from citeproc import Citation, CitationItem, CitationStylesStyle, CitationStylesBibliography
+from citeproc import formatter
+import argparse
+import bibtexparser
+
+_args = None
+
+def get_bibliography():
+	sources = []
+	for path in _args.path:
+		if os.path.isfile(path):
+			sources.append(path)
+		for root, dirs, files in os.walk(path):
+			for name in files:
+				if mimetypes.guess_type(name)[0] == "text/x-bibtex":
+					sources.append(name)
+	try:
+		bib_style = CitationStylesStyle(_args.style, validate=False)
+	except ValueError:
+		print("Unknown style.")
+		return
+	database = {}
+	for source in sources:
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore")
+			database.update(BibTeX(source))
+	return CitationStylesBibliography(bib_style, database, formatter.plain)
+
+def print_citations():
+	bibliography = get_bibliography()
+	for key in sorted(bibliography.source):
+		if key in keys or "*" in keys:
+			cit = Citation([CitationItem(key)])
+			bibliography.register(cit)
+			if _args.cite:
+				print(bibliography.cite(cit, None))
+	if _args.cite:
+		return
+	for item in bibliography.bibliography():
+		print(str(item))
+
+def process(filename):
+	bibliography = get_bibliography()
+	def warn(citation):
+		pass
+	def mark_replace(mark):
+		cit = Citation([CitationItem(mark.group(1))])
+		bibliography.register(cit)
+		return str(bibliography.cite(cit, warn))
+	def bibmark_replace(bibmark):
+		bibout = ""
+		for item in bibliography.bibliography():
+			bibout += str(item)
+		return bibout
+	base, tail = os.path.split(filename)
+	fp = open(filename, "r")
+	output = re.sub('\[@([a-zA-Z\d-]+)[^]]*\]', mark_replace, fp.read())
+	output = re.sub('\[@@bibliography[\s]+.*\]', bibmark_replace, output)
+	fp.close()
+	print(output)
+
+def main():
+	global _args
+	database = bibtexparser.loads(open("/home/user/bib.bib").read())
+	fp = open("test.bib", "w")
+	writer = bibtexparser.bwriter.BibTexWriter()
+	writer.indent = "	"
+	fp.write(writer.write(database))
+	fp.close()
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument("keywords", nargs="+", help="BibTeX keywords")
+	parser.add_argument("--path", default=".",
+		nargs="+", help="Search path for databases.")
+	parser.add_argument("--style", default="harvard1",
+		help="The bibliography CSL style to use.")
+	parser.add_argument("--cite", help="Print the citation mark.", action="store_true", default=False)
+	parser.add_argument("--file", help="Replace marks in the file.")
+	parser.add_argument("--format", default="plain",
+		choices=["plain", "html", "rst"],
+		help="Output format of the citation.")
+	_args = parser.parse_args()
+	_args.format = {"plain" : formatter.plain, "html" : formatter.html, "rst" :
+		formatter.rst}[_args.format]
+	if _args.file is not None:
+		process(_args.file)
+	else:
+		print_citations()
+
+if __name__ == "__main__":
+	main()
