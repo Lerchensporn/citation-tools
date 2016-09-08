@@ -7,3 +7,6 @@ TODO
 	- fix pages error
 	- remove ascii restriction in BibTeX
 	- add context and latex formatters
+- odf reader
+- ISBN lookup https://gist.github.com/DavidGriffith/5097431
+  in worldcat or isbndb or "lead to amazon"

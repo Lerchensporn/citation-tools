@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import shlex
 import re
 import warnings
 import mimetypes
@@ -21,8 +23,10 @@ def get_bibliography():
 		for root, dirs, files in os.walk(path):
 			for name in files:
 				if mimetypes.guess_type(name)[0] == "text/x-bibtex":
-					sources.append(name)
+					sources.append(os.path.join(root, name))
 	try:
+		# validation is broken, because the schema files are in rnc instead of rng
+		# format now
 		bib_style = CitationStylesStyle(_args.style, validate=False)
 	except ValueError:
 		print("Unknown style.")
@@ -31,53 +35,78 @@ def get_bibliography():
 	for source in sources:
 		with warnings.catch_warnings():
 			warnings.simplefilter("ignore")
-			database.update(BibTeX(source))
-	return CitationStylesBibliography(bib_style, database, formatter.plain)
+			database.update(BibTeX(source, encoding="utf-8"))
+	return CitationStylesBibliography(bib_style, database, _args.format)
 
 def print_citations():
 	bibliography = get_bibliography()
+	if bibliography is None:
+		return
 	for key in sorted(bibliography.source):
-		if key in keys or "*" in keys:
+		if key in _args.keywords or "*" in _args.keywords:
 			cit = Citation([CitationItem(key)])
 			bibliography.register(cit)
 			if _args.cite:
 				print(bibliography.cite(cit, None))
 	if _args.cite:
 		return
-	for item in bibliography.bibliography():
-		print(str(item))
+	print(bibliography.bibliography())
 
 def process(filename):
 	bibliography = get_bibliography()
+	if bibliography is None:
+		return
 	def warn(citation):
 		pass
+	citedkeys = []
 	def mark_replace(mark):
-		cit = Citation([CitationItem(mark.group(1))])
+		key = mark.group(1)
+		citedkeys.append(key)
+		cit = Citation([CitationItem(key)])
 		bibliography.register(cit)
 		return str(bibliography.cite(cit, warn))
 	def bibmark_replace(bibmark):
 		bibout = ""
-		for item in bibliography.bibliography():
-			bibout += str(item)
-		return bibout
+		tag = "@@bibliography"
+		bibmark = bibmark.group(0)
+		options = bibmark[bibmark.index(tag) + len(tag):-1]
+		optgex = r'((?:\\.|[^=\s]+)*)\s*=\s*("(?:\\.|[^"\\]+)*"|(?:\\.|[^\s"\\]+)*)'
+		options = re.findall(optgex, options)
+		keylist = citedkeys
+		for opt, value in options:
+			if opt == "criterium":
+				if value == "all":
+					keylist = bibliography.source
+				elif value == "text":
+					keylist = citedkeys
+				else:
+					print("Invalid option value: %s" % value, file=sys.stderr)
+			else:
+				print("Invalid option: %s" % value, file=sys.stderr)
+		for key in keylist:
+			cit = Citation([CitationItem(key)])
+			bibliography.register(cit)
+		return bibliography.bibliography()
 	base, tail = os.path.split(filename)
 	fp = open(filename, "r")
 	output = re.sub('\[@([a-zA-Z\d-]+)[^]]*\]', mark_replace, fp.read())
-	output = re.sub('\[@@bibliography[\s]+.*\]', bibmark_replace, output)
+	output = re.sub('\[@@bibliography(\s+[^]]*)*\]', bibmark_replace, output)
 	fp.close()
 	print(output)
 
 def main():
 	global _args
+	"""
 	database = bibtexparser.loads(open("/home/user/bib.bib").read())
 	fp = open("test.bib", "w")
 	writer = bibtexparser.bwriter.BibTexWriter()
 	writer.indent = "	"
 	fp.write(writer.write(database))
 	fp.close()
+	"""
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument("keywords", nargs="+", help="BibTeX keywords")
+	parser.add_argument("keywords", nargs="*", help="BibTeX keywords")
 	parser.add_argument("--path", default=".",
 		nargs="+", help="Search path for databases.")
 	parser.add_argument("--style", default="harvard1",
@@ -85,11 +114,12 @@ def main():
 	parser.add_argument("--cite", help="Print the citation mark.", action="store_true", default=False)
 	parser.add_argument("--file", help="Replace marks in the file.")
 	parser.add_argument("--format", default="plain",
-		choices=["plain", "html", "rst"],
+		choices=["plain", "html", "rst", "context", "latex"],
 		help="Output format of the citation.")
 	_args = parser.parse_args()
 	_args.format = {"plain" : formatter.plain, "html" : formatter.html, "rst" :
-		formatter.rst}[_args.format]
+		formatter.rst, "context" : formatter.context, "latex" :
+		formatter.latex}[_args.format]
 	if _args.file is not None:
 		process(_args.file)
 	else:
