@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import subprocess
 import sys
 import warnings
 import re
@@ -11,6 +12,9 @@ import bibtexparser
 import json
 import tempfile
 from citeproc import Citation, CitationItem
+import argparse
+
+_doigex = re.compile('[\s\.\:]{0,2}(10\.\d{4}[\d\:\.\-\/a-zA-Z]+)[A-Z\s]')
 
 def bib_save(bibtex, ref_filename):
 	base, tail = os.path.split(ref_filename)
@@ -23,7 +27,7 @@ def bib_save(bibtex, ref_filename):
 	writer.indent = "	"
 	fp.write(writer.write(database))
 	fp.close()
-	print("The database entry has been written to %s." % filename)
+	print("Database written to: %s" % filename)
 
 def doi2bib(doi):
 	url = "http://dx.doi.org/" + doi
@@ -39,7 +43,14 @@ def doi2bib(doi):
 		return None
 	return resp.read().decode(encoding="utf-8")
 
-# pdftotext -f 1 -l 10 -raw "%s" -
+def doi_from_file2(filename):
+	popel = subprocess.Popen(["pdftotext", "-f", "1", "-l", "10", "-raw", filename,
+		"-"], stdout=subprocess.PIPE)
+	output = popel.communicate()[0].decode()
+	finds = _doigex.findall(output)
+	return finds[0] if len(finds) > 0 else None
+
+# use the low-quality output of PyPDF2
 def doi_from_file(filename):
 	fp = open(filename, "rb")
 	with warnings.catch_warnings():
@@ -48,30 +59,28 @@ def doi_from_file(filename):
 			pdf = PdfFileReader(fp)
 		except:
 			return None
-	doigex = re.compile('[\s\.\:]{0,2}(10\.\d{4}[\d\:\.\-\/a-zA-Z]+)[A-Z\s]')
 	finds = []
 	for i in range(min(10, pdf.getNumPages())):
 		text = pdf.getPage(i).extractText().join("/\n")
-		finds = doigex.findall(text)
+		finds = _doigex.findall(text)
 		if len(finds) > 0:
 			break
 	fp.close()
-	if len(finds) == 0:
-		return None
-	return finds[0]
+	return finds[0] if len(finds) > 0 else None
 
 def main():
-	if len(sys.argv) < 2:
-		print("Specify a list of DOI or file names.")
-		return
-	filename = None
+	parser = argparse.ArgumentParser()
+	parser.add_argument("sources", nargs="+", help="List of DOI or file names")
+	parser.add_argument("--save", help="Save bibliography data in the directory of the source.", action="store_true")
+	args = parser.parse_args()
 	refitems = []
-	for item in sys.argv[1:]:
-		if item[0] != "-":
-			refitems.append(item)
-	for refitem in refitems:
+	for refitem in args.sources:
+		filename = None
 		if os.path.exists(refitem):
-			doi = doi_from_file(refitem)
+			if not os.path.isfile(refitem):
+				print("Not a file: {}".format(refitem))
+				continue
+			doi = doi_from_file(refitem) or doi_from_file2(refitem)
 			if doi is None:
 				print("-> " + os.path.split(refitem)[1] + ":", file=sys.stderr)
 				print("	The documents contains no DOI.", file=sys.stderr)
@@ -80,7 +89,9 @@ def main():
 		else:
 			doi = refitem
 		bibtex = doi2bib(doi)
-		if "--save" in sys.argv:
+		if bibtex is None:
+			continue
+		if filename is not None and args.save:
 			bib_save(bibtex, filename)
 		else:
 			print(bibtex)
