@@ -60,11 +60,24 @@ def process(filename):
 		pass
 	citedkeys = []
 	def mark_replace(mark):
-		key = mark.group(1)
-		citedkeys.append(key)
-		cit = Citation([CitationItem(key)])
+		# We captured a list of repeated citations. This is necessary to account for
+		# comma separation or abbreviation of the list of citation marks.  Now we
+		# capture the individual citations.  The re module does not support repeated
+		# capture groups, as opposed to the regex module, which is, however, not a
+		# core package.
+		citations = []
+		matches = re.findall('\[@([a-zA-Z\d-]+)[^]]*\]', mark.group())
+		for key in matches:
+			citations.append(CitationItem(key))
+			citedkeys.append(key)
+		cit = Citation(citations)
 		bibliography.register(cit)
-		return str(bibliography.cite(cit, warn))
+		# Preserve white-space around the citation markers (especially newlines).
+		white_start = re.search('^([\s]*)', mark.group())
+		white_start = white_start.group() if white_start is not None else ""
+		white_end = re.search('([\s]*)$', mark.group())
+		white_end = white_end.group() if white_end is not None else ""
+		return white_start + str(bibliography.cite(cit, warn)) + white_end
 	def bibmark_replace(bibmark):
 		bibout = ""
 		tag = "@@bibliography"
@@ -88,8 +101,8 @@ def process(filename):
 			bibliography.register(cit)
 		return bibliography.bibliography()
 	base, tail = os.path.split(filename)
-	fp = open(filename, "r")
-	output = re.sub('\[@([a-zA-Z\d-]+)[^]]*\]', mark_replace, fp.read())
+	fp = open(filename, "r", encoding="iso-8859-1")
+	output = re.sub('(\[@([a-zA-Z\d-]+)[^]]*\]\s*)+', mark_replace, fp.read())
 	output = re.sub('\[@@bibliography(\s+[^]]*)*\]', bibmark_replace, output)
 	fp.close()
 	print(output)
