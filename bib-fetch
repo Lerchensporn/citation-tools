@@ -16,12 +16,10 @@ import argparse
 
 _doigex = re.compile('[\s\.\:]{0,2}(10\.\d{4}[\d\:\.\-\/a-zA-Z]+)[A-Z\s]')
 
-def bib_save(bibtex, ref_filename):
-	base, tail = os.path.split(ref_filename)
-	key = re.split("[ .,]+", tail)[0]
-	filename = os.path.join(base, key + ".bib")
+def bib_save(bibtex, filename, key):
 	database = bibtexparser.loads(bibtex)
-	database.entries[0]["ID"] = key
+	if key is not None:
+		database.entries[0]["ID"] = key
 	fp = open(filename, "w")
 	writer = bibtexparser.bwriter.BibTexWriter()
 	writer.indent = "	"
@@ -71,28 +69,39 @@ def doi_from_file(filename):
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("sources", nargs="+", help="List of DOI or file names")
-	parser.add_argument("--save", help="Save bibliography data in the directory of the source.", action="store_true")
+	parser.add_argument("--save", help="Directory where to save the database files.")
 	args = parser.parse_args()
 	refitems = []
 	for refitem in args.sources:
-		filename = None
+		key = None
 		if os.path.exists(refitem):
 			if not os.path.isfile(refitem):
 				print("Not a file: {}".format(refitem))
 				continue
-			doi = doi_from_file(refitem) or doi_from_file2(refitem)
+			doi = None
+			try:
+				doi = doi_from_file(refitem)
+			except:
+				pass
+			if doi is None:
+				doi = doi_from_file2(refitem)
 			if doi is None:
 				print("-> " + os.path.split(refitem)[1] + ":", file=sys.stderr)
 				print("	The documents contains no DOI.", file=sys.stderr)
 				continue
-			filename = refitem
+			base, tail = os.path.split(refitem)
+			key = re.split("[ .,]+", tail)[0]
 		else:
 			doi = refitem
 		bibtex = doi2bib(doi)
+		if key is None:
+			database = bibtexparser.loads(bibtex)
+			key = database.entries[0]["ID"]
 		if bibtex is None:
 			continue
-		if filename is not None and args.save:
-			bib_save(bibtex, filename)
+		if args.save is not None:
+			filename = os.path.join(args.save, key + ".bib")
+			bib_save(bibtex, filename, key)
 		else:
 			print(bibtex)
 
