@@ -12,6 +12,9 @@ from citeproc import Citation, CitationItem, CitationStylesStyle, CitationStyles
 from citeproc import formatter
 import argparse
 import bibtexparser
+import zipfile
+import tempfile
+import io
 
 _args = None
 
@@ -52,7 +55,33 @@ def print_citations():
 		return
 	print(bibliography.bibliography())
 
-def process(filename):
+def print_processed_file(filename):
+	if zipfile.is_zipfile(filename):
+		if sys.stdout.isatty():
+			print("Please pipe the output to a file.", file=sys.stderr)
+			return
+		sys.stdout.buffer.write(process_zipfile(filename))
+	else:
+		print(process_file(filename))
+
+def process_zipfile(filename):
+	zf = zipfile.ZipFile(filename)
+	dirpath = tempfile.mkdtemp()
+	zf.extractall(dirpath)
+	zf.close()
+	output = io.BytesIO()
+	zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
+	for root, dirs, files in os.walk(dirpath):
+		for item in files:
+			abspath = os.path.join(root, item)
+			zf.writestr(os.path.relpath(abspath, dirpath), process_file(os.path.join(root, item)))
+	zf.close()
+	output.seek(0)
+	text = output.read()
+	output.close()
+	return text
+
+def process_file(filename):
 	bibliography = get_bibliography()
 	if bibliography is None:
 		return
@@ -105,7 +134,7 @@ def process(filename):
 	output = re.sub('(\[@([a-zA-Z\d-]+)[^]]*\]\s*)+', mark_replace, fp.read())
 	output = re.sub('\[@@bibliography(\s+[^]]*)*\]', bibmark_replace, output)
 	fp.close()
-	print(output)
+	return output
 
 def main():
 	global _args
@@ -127,14 +156,14 @@ def main():
 	parser.add_argument("--cite", help="Print the citation mark.", action="store_true", default=False)
 	parser.add_argument("--file", help="Replace marks in the file.")
 	parser.add_argument("--format", default="plain",
-		choices=["plain", "html", "rst", "context", "latex"],
+		choices=["plain", "html", "rst", "context", "latex", "odf", "doc"],
 		help="Output format of the citation.")
 	_args = parser.parse_args()
 	_args.format = {"plain" : formatter.plain, "html" : formatter.html, "rst" :
 		formatter.rst, "context" : formatter.context, "latex" :
-		formatter.latex}[_args.format]
+		formatter.latex, "odf" : formatter.odf, "doc" : formatter.doc}[_args.format]
 	if _args.file is not None:
-		process(_args.file)
+		print_processed_file(_args.file)
 	else:
 		print_citations()
 
